@@ -14,6 +14,10 @@ export class ApiError extends Error {
   }
 }
 
+function snippet(content: string): string {
+  return content.replace(/[#*_>`-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
 function humanizeTitle(path: string): string {
   const base = path.split("/").pop() || path;
   return base
@@ -33,7 +37,9 @@ function normalizeNote(raw: any): Note {
     path,
     title: humanizeTitle(path || String(raw.id ?? "untitled")),
     content: raw.content,
-    preview: raw.preview,
+    // Fall back to a content-derived snippet when the list endpoint returns
+    // bodies (include_content=true) but no separate preview field.
+    preview: raw.preview ?? (raw.content ? snippet(raw.content) : undefined),
     tags: Array.isArray(raw.tags) ? raw.tags : [],
     metadata: raw.metadata && typeof raw.metadata === "object" ? raw.metadata : {},
     links: raw.links,
@@ -110,12 +116,13 @@ export class VaultApi {
     return res.json();
   }
 
-  // One cheap call returns the whole index (id/path/tags/metadata/preview/
-  // timestamps). With a vault this size we derive every dashboard pane and the
-  // tag list from this in memory.
-  async listAll(limit = 1000): Promise<Note[]> {
+  // One call returns the whole vault. We derive every dashboard pane + the tag
+  // list from this in memory. Pass includeContent to also pull note bodies (the
+  // intelligence panel needs them for cross-note concept analysis).
+  async listAll(opts: { includeContent?: boolean; limit?: number } = {}): Promise<Note[]> {
+    const { includeContent = false, limit = 1000 } = opts;
     const data = await this.request(
-      `/notes?include_content=false&limit=${limit}`,
+      `/notes?include_content=${includeContent}&limit=${limit}`,
     );
     return unwrapList(data).map(normalizeNote);
   }

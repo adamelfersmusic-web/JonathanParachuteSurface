@@ -11,6 +11,7 @@ import {
 } from "./oauth";
 import { ConfigScreen } from "./components/ConfigScreen";
 import { CaptureModal } from "./components/CaptureModal";
+import { IntelligencePanel } from "./components/IntelligencePanel";
 import { NoteCard } from "./components/NoteCard";
 import { ScriptsBoard } from "./components/ScriptsBoard";
 import { NotePanel, type PanelTarget } from "./components/NotePanel";
@@ -162,12 +163,23 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [target, setTarget] = useState<PanelTarget | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [intelCollapsed, setIntelCollapsed] = useState(
+    () => localStorage.getItem("vault-deck.intel.collapsed") === "1",
+  );
+
+  function toggleIntel() {
+    setIntelCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("vault-deck.intel.collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
 
   async function loadAll() {
     setLoading(true);
     setError(null);
     try {
-      setNotes(await api.listAll());
+      setNotes(await api.listAll({ includeContent: true }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -291,6 +303,16 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
         </nav>
 
         <main className="content">
+          <IntelligencePanel
+            notes={notes}
+            loading={loading}
+            collapsed={intelCollapsed}
+            onToggle={toggleIntel}
+            onConceptClick={(c) => {
+              setActiveTag(null);
+              setQuery(c.searchTerm);
+            }}
+          />
           {loading ? (
             <div className="muted center">Loading vault…</div>
           ) : query.trim() ? (

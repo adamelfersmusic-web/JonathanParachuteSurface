@@ -63,7 +63,7 @@ export function ConfigScreen({
     setBusy(true);
     try {
       // Verify before saving so a bad paste fails here, loudly.
-      await new VaultApi(new AuthManager(session, () => {})).listAll(1);
+      await new VaultApi(new AuthManager(session, () => {})).listAll({ limit: 1 });
       onConnected(session);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
