@@ -10,6 +10,7 @@ import {
   storedFromTokenResponse,
 } from "./oauth";
 import { ConfigScreen } from "./components/ConfigScreen";
+import { CaptureModal } from "./components/CaptureModal";
 import { NoteCard } from "./components/NoteCard";
 import { ScriptsBoard } from "./components/ScriptsBoard";
 import { NotePanel, type PanelTarget } from "./components/NotePanel";
@@ -160,6 +161,7 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
 
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [target, setTarget] = useState<PanelTarget | null>(null);
+  const [capturing, setCapturing] = useState(false);
 
   async function loadAll() {
     setLoading(true);
@@ -241,7 +243,7 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
           {searching && <span className="search-spinner">…</span>}
         </div>
         <div className="topbar-actions">
-          <button onClick={() => setTarget({ mode: "create" })}>+ Capture</button>
+          <button onClick={() => setCapturing(true)}>+ Capture</button>
           <button className="ghost" onClick={loadAll} title="Refresh">
             ↻
           </button>
@@ -320,6 +322,10 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
           onChanged={loadAll}
           onNavigate={openByIdOrPath}
         />
+      )}
+
+      {capturing && (
+        <CaptureModal api={api} onClose={() => setCapturing(false)} onSaved={loadAll} />
       )}
     </div>
   );

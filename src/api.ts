@@ -67,7 +67,10 @@ export class VaultApi {
   private async send(path: string, init: RequestInit, token: string): Promise<Response> {
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${token}`);
-    if (init.body) headers.set("Content-Type", "application/json");
+    // Let the browser set the multipart boundary for FormData uploads.
+    if (init.body && !(init.body instanceof FormData)) {
+      headers.set("Content-Type", "application/json");
+    }
     try {
       return await fetch(`${this.auth.vaultBase}/api${path}`, { ...init, headers });
     } catch {
@@ -172,6 +175,34 @@ export class VaultApi {
   async deleteNote(idOrPath: string): Promise<void> {
     await this.request(`/notes/${encodePathSegment(idOrPath)}`, {
       method: "DELETE",
+    });
+  }
+
+  // Upload a file (e.g. a voice recording) to the vault's storage. Returns the
+  // stored path + mime type, which the caller then links to a note.
+  async uploadStorage(
+    blob: Blob,
+    filename: string,
+  ): Promise<{ path: string; mimeType: string; size?: number }> {
+    const form = new FormData();
+    form.append("file", blob, filename);
+    const data = await this.request(`/storage/upload`, { method: "POST", body: form });
+    return {
+      path: data?.path,
+      mimeType: data?.mimeType ?? data?.mime_type ?? blob.type,
+      size: data?.size,
+    };
+  }
+
+  // Link a stored file to a note as an attachment. `transcribe: true` asks the
+  // vault to transcribe audio server-side; the transcript lands on the note.
+  async addAttachment(
+    noteIdOrPath: string,
+    body: { path: string; mimeType: string; transcribe?: boolean },
+  ): Promise<any> {
+    return this.request(`/notes/${encodePathSegment(noteIdOrPath)}/attachments`, {
+      method: "POST",
+      body: JSON.stringify(body),
     });
   }
 
