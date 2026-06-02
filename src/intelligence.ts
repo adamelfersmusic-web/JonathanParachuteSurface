@@ -15,26 +15,27 @@ export interface Concept {
   searchTerm: string; // what clicking the bar searches for
 }
 
+// Tuned against the live vault: distinctive multi-word phrases (not broad
+// single words) so bar heights actually differentiate the macro themes.
 export const CONCEPTS: Concept[] = [
-  { label: "Providing without disappearing", terms: ["without disappear", "provide without", "present and provide"], searchTerm: "disappearing" },
+  { label: "Providing without disappearing", terms: ["without disappear", "provide without", "present and provide", "provide and be"], searchTerm: "disappearing" },
   { label: "The Free Man's Path", terms: ["free man", "free man's path"], searchTerm: "free man" },
-  { label: "Freedom is earned", terms: ["freedom is earned", "earned, not escaped", "earned not escaped", "freedom is not", "not escape"], searchTerm: "freedom" },
-  { label: "Follow-up = trust", terms: ["follow-up", "follow up", "followup", "stay in touch"], searchTerm: "follow-up" },
-  { label: "CRM / pipeline leak", terms: ["crm", "go high level", "ghl", "pipeline", "48 hour", "48-hour", "leads come in"], searchTerm: "CRM" },
-  { label: "Recruiting & the Gaietto Group", terms: ["recruit", "gaietto group", "downline", "upline", "agency", "agent"], searchTerm: "recruiting" },
-  { label: "Ads & analytics", terms: ["meta ad", "ad account", "analytics", "zeepo", "ad spend", "paid ad", "creative"], searchTerm: "analytics" },
-  { label: "Compounding systems", terms: ["compound", "infrastructure", "institutional knowledge", "the system", "sop"], searchTerm: "system" },
-  { label: "Wounded Provider", terms: ["wounded provider", "absent father", "silent hero", "provider"], searchTerm: "provider" },
-  { label: "Presence with family", terms: ["presence", "time with", "his kids", "people you love", "baseball field", "bedtime", "kitchen table"], searchTerm: "presence" },
-  { label: "Ownership", terms: ["ownership", "own your", "owning your", "you own", "build a life"], searchTerm: "ownership" },
-  { label: "Income & sales", terms: ["income", "commission", "sales call", "president's club", "400,000", "closing", "close the"], searchTerm: "income" },
-  { label: "Integrity / no hype", terms: ["integrity", "no hype", "real life. real work", "plainspoken", "grounded"], searchTerm: "integrity" },
+  { label: "Freedom is earned, not escaped", terms: ["freedom is earned", "earned, not escaped", "earned not escaped", "freedom is not", "not an escape", "freedom isn't"], searchTerm: "freedom" },
+  { label: "Follow-up = trust", terms: ["follow-up", "follow up", "followup", "stay in touch", "nurture"], searchTerm: "follow-up" },
+  { label: "CRM / pipeline leak", terms: ["crm", "go high level", "ghl", "48-hour", "48 hour", "pipeline", "leads come in", "leads sit"], searchTerm: "CRM" },
+  { label: "Recruiting funnel / PATH", terms: ["recruit", "gaietto group", "downline", "upline", 'dm "path"', "dm path"], searchTerm: "recruiting" },
+  { label: "Own your analytics", terms: ["meta ad", "ad account", "analytics", "zeepo", "compounding data", "own the data", "own your data"], searchTerm: "analytics" },
+  { label: "Compounding infrastructure", terms: ["compound", "institutional knowledge", "infrastructure", "systems layer", "sop", "scale a team", "build a system"], searchTerm: "infrastructure" },
+  { label: "Wounded Provider", terms: ["wounded provider", "absent father", "silent hero", "disappeared", "provide but"], searchTerm: "wounded provider" },
+  { label: "Presence over hustle", terms: ["presence", "time with", "people you love", "kitchen table", "bedtime", "baseball field", "be present", "summers are left"], searchTerm: "presence" },
+  { label: "Ownership", terms: ["ownership", "own your", "owning your", "build a life that", "build something"], searchTerm: "ownership" },
+  { label: "Income proof", terms: ["president's club", "$400,000", "400,000", "tree stump", "commission", "hatchet", "sitting on a"], searchTerm: "income" },
+  { label: "Integrity / no hype", terms: ["no hype", "real life. real work", "plainspoken", "not performative"], searchTerm: "no hype" },
   { label: "Protection / life insurance", terms: ["life insurance", "policy", "policies", "coverage", "protect"], searchTerm: "life insurance" },
-  { label: "Homestead & real footage", terms: ["chicken", "creek", "chopping wood", "homestead", "farm", "truck", "coop", "stock footage"], searchTerm: "homestead" },
-  { label: "Brand canon vs compost", terms: ["brand brain", "brand doc", "voice guide", "compost", "canon"], searchTerm: "brand" },
-  { label: "Knowledge graph & links", terms: ["knowledge graph", "wikilink", "[[", "graph view", "link cluster", "priority links", "connect notes"], searchTerm: "links" },
-  { label: "California transcripts", terms: ["california", "airport", "car ride", "drive to the airport", "field shoot"], searchTerm: "california" },
-  { label: "Scripts & hooks", terms: ["script", "hook", "caption", "cta", "pillar"], searchTerm: "script" },
+  { label: "Homestead aesthetic", terms: ["chicken", "creek", "chopping wood", "homestead", "coop", "stock footage", "mundane homesteader"], searchTerm: "homestead" },
+  { label: "Brand canon vs compost", terms: ["brand brain", "voice guide", "compost", "the canon", "locked brand", "brand doc"], searchTerm: "brand" },
+  { label: "Knowledge graph & links", terms: ["knowledge graph", "wikilink", "[[", "link cluster", "priority links", "connect notes", "biggest hubs"], searchTerm: "links" },
+  { label: "California trip", terms: ["california", "airport", "drive to the airport", "field shoot", "car ride", "car transcript"], searchTerm: "california" },
 ];
 
 export interface ConceptStat {
@@ -46,9 +47,11 @@ export interface ConceptStat {
 }
 
 const MAX_BARS = 12;
-// A concept is "emerging" when the average recency-rank of the notes that
-// mention it sits above this (0 = oldest, 1 = newest; 0.5 = evenly spread).
-const EMERGING_THRESHOLD = 0.58;
+// A concept is "emerging" when the notes mentioning it skew toward the newest:
+// their average recency-rank (0 = oldest, 1 = newest; 0.5 = evenly spread) is
+// above EMERGING_THRESHOLD AND a healthy share fall in the newest third.
+const EMERGING_THRESHOLD = 0.56;
+const EMERGING_RECENT_SHARE = 0.4;
 
 export function analyzeConcepts(notes: Note[]): ConceptStat[] {
   if (notes.length === 0) return [];
@@ -57,7 +60,7 @@ export function analyzeConcepts(notes: Note[]): ConceptStat[] {
   // time) so the established/emerging split is meaningful even when the whole
   // vault was created within a couple of days.
   const haystacks = notes.map((n) => ({
-    text: `${n.title}\n${n.content ?? n.preview ?? ""}`.toLowerCase(),
+    text: (n.content ?? `${n.title} ${n.preview ?? ""}`).toLowerCase(),
     ts: Date.parse(n.updatedAt || n.createdAt || "") || 0,
   }));
   const n = haystacks.length;
@@ -84,7 +87,10 @@ export function analyzeConcepts(notes: Note[]): ConceptStat[] {
       searchTerm: c.searchTerm,
       count,
       recentCount,
-      emerging: count >= 2 && avgPercentile >= EMERGING_THRESHOLD,
+      emerging:
+        count >= 2 &&
+        avgPercentile >= EMERGING_THRESHOLD &&
+        recentCount / count >= EMERGING_RECENT_SHARE,
     };
   });
 
