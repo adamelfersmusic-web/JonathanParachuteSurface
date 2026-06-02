@@ -99,3 +99,20 @@ export function analyzeConcepts(notes: Note[]): ConceptStat[] {
     .sort((a, b) => b.count - a.count)
     .slice(0, MAX_BARS);
 }
+
+// The notes behind a bar — same term match used for counting, newest first —
+// so the inline drill-in is exactly the set the bar height represents.
+export function notesForConcept(notes: Note[], label: string): Note[] {
+  const concept = CONCEPTS.find((c) => c.label === label);
+  if (!concept) return [];
+  return notes
+    .filter((n) => {
+      const text = (n.content ?? `${n.title} ${n.preview ?? ""}`).toLowerCase();
+      return concept.terms.some((t) => text.includes(t));
+    })
+    .sort(
+      (a, b) =>
+        (Date.parse(b.updatedAt || b.createdAt || "") || 0) -
+        (Date.parse(a.updatedAt || a.createdAt || "") || 0),
+    );
+}

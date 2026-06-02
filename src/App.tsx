@@ -308,10 +308,7 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
             loading={loading}
             collapsed={intelCollapsed}
             onToggle={toggleIntel}
-            onConceptClick={(c) => {
-              setActiveTag(null);
-              setQuery(c.searchTerm);
-            }}
+            onOpenNote={openNote}
           />
           {loading ? (
             <div className="muted center">Loading vault…</div>

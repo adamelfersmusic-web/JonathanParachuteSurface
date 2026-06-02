@@ -491,6 +491,40 @@ button:disabled {
 .bar-col:hover .bar-label {
   color: var(--ink);
 }
+.bar-col.selected .bar {
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--line-strong);
+  filter: brightness(1.18);
+}
+.bar-col.selected .bar-label {
+  color: var(--cream);
+  font-weight: 600;
+}
+
+.intel-matches {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.intel-matches-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+.intel-matches-title {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.intel-matches-title strong {
+  color: var(--gold);
+  font-weight: 600;
+}
+.intel-matches-list {
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
 
 .command-center {
   display: grid;
