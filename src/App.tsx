@@ -224,7 +224,8 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          Vault Deck <span className="brand-slug">{vaultSlug(auth.vaultBase)}</span>
+          <span className="brand-name">Vault Deck</span>
+          <span className="brand-slug">{vaultSlug(auth.vaultBase)}</span>
         </div>
         <div className="search-wrap">
           <input
@@ -339,7 +340,7 @@ function CommandCenter({
         <h2>Pinned</h2>
         <div className="card-grid">
           {pinned(notes).map((n) => (
-            <NoteCard key={n.id} note={n} onOpen={onOpen} />
+            <NoteCard key={n.id} note={n} onOpen={onOpen} accent="gold" />
           ))}
           {pinned(notes).length === 0 && <Empty>Nothing pinned.</Empty>}
         </div>
@@ -351,7 +352,7 @@ function CommandCenter({
         </h2>
         <div className="card-grid">
           {todos(notes).map((n) => (
-            <NoteCard key={n.id} note={n} onOpen={onOpen} />
+            <NoteCard key={n.id} note={n} onOpen={onOpen} accent="sage" />
           ))}
           {todos(notes).length === 0 && <Empty>No open todos.</Empty>}
         </div>

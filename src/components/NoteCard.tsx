@@ -21,17 +21,23 @@ export function NoteCard({
   note,
   onOpen,
   showStatus = false,
+  accent,
 }: {
   note: Note;
   onOpen: (note: Note) => void;
   showStatus?: boolean;
+  accent?: "gold" | "sage";
 }) {
   const pillar = note.metadata.pillar as string | undefined;
   const cta = note.metadata.cta_level as string | number | undefined;
   const status = note.metadata.status as string | undefined;
 
   return (
-    <button type="button" className="note-card" onClick={() => onOpen(note)}>
+    <button
+      type="button"
+      className={`note-card${accent ? ` accent-${accent}` : ""}`}
+      onClick={() => onOpen(note)}
+    >
       <div className="note-card-title">{note.title}</div>
       <div className="note-card-path">{note.path}</div>
       {note.preview && <div className="note-card-preview">{cleanPreview(note.preview)}</div>}
