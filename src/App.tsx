@@ -12,6 +12,10 @@ import {
 import { ConfigScreen } from "./components/ConfigScreen";
 import { CaptureModal } from "./components/CaptureModal";
 import { IntelligencePanel } from "./components/IntelligencePanel";
+import { ViewTabs, type ViewId } from "./components/ViewTabs";
+import { PipelineView } from "./components/PipelineView";
+import { MapView } from "./components/MapView";
+import { FounderView } from "./components/FounderView";
 import { NoteCard } from "./components/NoteCard";
 import { ScriptsBoard } from "./components/ScriptsBoard";
 import { NotePanel, type PanelTarget } from "./components/NotePanel";
@@ -167,12 +171,42 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
     () => localStorage.getItem("vault-deck.intel.collapsed") === "1",
   );
 
+  // The active lens. Search and tag-rail are global "drill into notes" actions
+  // that always route to the Deck; the other tabs are pure render modes.
+  const [view, setView] = useState<ViewId>(
+    () => (localStorage.getItem("vault-deck.view") as ViewId) || "deck",
+  );
+
   function toggleIntel() {
     setIntelCollapsed((c) => {
       const next = !c;
       localStorage.setItem("vault-deck.intel.collapsed", next ? "1" : "0");
       return next;
     });
+  }
+
+  function changeView(v: ViewId) {
+    setView(v);
+    localStorage.setItem("vault-deck.view", v);
+  }
+
+  // Explicit tab click: switch lens and drop any active filter.
+  function selectTab(v: ViewId) {
+    changeView(v);
+    setQuery("");
+    setActiveTag(null);
+  }
+
+  function browseTag(tag: string | null) {
+    changeView("deck");
+    setQuery("");
+    setActiveTag(tag);
+  }
+
+  function runSearch(text: string) {
+    setQuery(text);
+    setActiveTag(null);
+    if (text.trim()) changeView("deck");
   }
 
   async function loadAll() {
@@ -247,10 +281,7 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
             type="search"
             placeholder="Search one word, find anything…"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setActiveTag(null);
-            }}
+            onChange={(e) => runSearch(e.target.value)}
           />
           {searching && <span className="search-spinner">…</span>}
         </div>
@@ -265,6 +296,8 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
         </div>
       </header>
 
+      <ViewTabs view={view} onChange={selectTab} />
+
       {error && (
         <div className="error-box app-error">
           {error}
@@ -278,11 +311,8 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
         <nav className="tag-rail">
           <div className="tag-rail-head">Tags</div>
           <button
-            className={`tag-rail-item ${activeTag === null && !query ? "active" : ""}`}
-            onClick={() => {
-              setActiveTag(null);
-              setQuery("");
-            }}
+            className={`tag-rail-item ${view === "deck" && activeTag === null && !query ? "active" : ""}`}
+            onClick={() => browseTag(null)}
           >
             <span>All notes</span>
             <span className="tag-rail-count">{notes.length}</span>
@@ -290,11 +320,8 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
           {tags.map((t) => (
             <button
               key={t.name}
-              className={`tag-rail-item ${activeTag === t.name ? "active" : ""}`}
-              onClick={() => {
-                setActiveTag(t.name);
-                setQuery("");
-              }}
+              className={`tag-rail-item ${view === "deck" && activeTag === t.name ? "active" : ""}`}
+              onClick={() => browseTag(t.name)}
             >
               <span>{t.name}</span>
               <span className="tag-rail-count">{t.count}</span>
@@ -303,32 +330,49 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
         </nav>
 
         <main className="content">
-          <IntelligencePanel
-            notes={notes}
-            loading={loading}
-            collapsed={intelCollapsed}
-            onToggle={toggleIntel}
-            onOpenNote={openNote}
-          />
-          {loading ? (
-            <div className="muted center">Loading vault…</div>
-          ) : query.trim() ? (
-            <ResultsList
-              title={`Search: “${query.trim()}”`}
-              notes={searchResults ?? []}
-              empty={searching ? "Searching…" : "No matches."}
-              onOpen={openNote}
-            />
-          ) : activeTag ? (
-            <ResultsList
-              title={`#${activeTag}`}
-              notes={filterByTag(notes, activeTag)}
-              empty="No notes with this tag."
-              onOpen={openNote}
-              showStatus={activeTag === "content/script"}
+          {view === "deck" ? (
+            <>
+              <IntelligencePanel
+                notes={notes}
+                loading={loading}
+                collapsed={intelCollapsed}
+                onToggle={toggleIntel}
+                onOpenNote={openNote}
+              />
+              {loading ? (
+                <div className="muted center">Loading vault…</div>
+              ) : query.trim() ? (
+                <ResultsList
+                  title={`Search: “${query.trim()}”`}
+                  notes={searchResults ?? []}
+                  empty={searching ? "Searching…" : "No matches."}
+                  onOpen={openNote}
+                />
+              ) : activeTag ? (
+                <ResultsList
+                  title={`#${activeTag}`}
+                  notes={filterByTag(notes, activeTag)}
+                  empty="No notes with this tag."
+                  onOpen={openNote}
+                  showStatus={activeTag === "content/script"}
+                />
+              ) : (
+                <CommandCenter notes={notes} onOpen={openNote} onMove={moveScript} />
+              )}
+            </>
+          ) : view === "pipeline" ? (
+            <PipelineView notes={notes} onOpen={openNote} onMove={moveScript} />
+          ) : view === "map" ? (
+            <MapView
+              notes={notes}
+              onConcept={(term) => {
+                changeView("deck");
+                setActiveTag(null);
+                setQuery(term);
+              }}
             />
           ) : (
-            <CommandCenter notes={notes} onOpen={openNote} onMove={moveScript} />
+            <FounderView />
           )}
         </main>
       </div>

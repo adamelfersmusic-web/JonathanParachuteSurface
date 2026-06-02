@@ -364,6 +364,136 @@ button:disabled {
   text-align: center;
   padding: 60px;
 }
+/* ---------- View tabs ---------- */
+.viewbar {
+  display: flex;
+  align-items: center;
+  padding: 9px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.segmented {
+  display: inline-flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px;
+}
+.seg {
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 18px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.seg:hover {
+  color: var(--ink);
+}
+.seg.active {
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+/* ---------- View headers / dedicated views ---------- */
+.view-head {
+  margin: 2px 0 18px;
+}
+.view-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--cream);
+  margin: 0;
+}
+.view-sub {
+  font-size: 13px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.view-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 90px 20px;
+}
+
+/* Pipeline: the roomy kanban. */
+.pipeline-view {
+  max-width: 1440px;
+}
+.pipeline-view .board {
+  gap: 14px;
+}
+.pipeline-view .board-column {
+  min-height: 60vh;
+  padding: 12px;
+}
+.pipeline-view .board-card {
+  padding: 12px 13px;
+}
+.pipeline-view .board-card-title {
+  font-size: 14.5px;
+}
+
+/* Map: concept relationship graph. */
+.map-view {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.map-wrap {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.map-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.map-node {
+  cursor: pointer;
+  outline: none;
+}
+.map-node circle {
+  transition: filter 0.15s;
+}
+.map-node:hover circle,
+.map-node:focus circle {
+  filter: brightness(1.18);
+}
+.map-label {
+  fill: var(--ink-2);
+  font-size: 11px;
+  font-family: var(--sans);
+  pointer-events: none;
+}
+.map-node:hover .map-label {
+  fill: var(--cream);
+}
+.map-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.map-legend .lg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ---------- Intelligence panel ---------- */
 .intel {
   background: var(--panel);

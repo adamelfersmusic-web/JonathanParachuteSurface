@@ -116,3 +116,61 @@ export function notesForConcept(notes: Note[], label: string): Note[] {
         (Date.parse(a.updatedAt || a.createdAt || "") || 0),
     );
 }
+
+export interface GraphNode {
+  label: string;
+  count: number;
+  emerging: boolean;
+  searchTerm: string;
+}
+// Indices reference the returned `nodes` array.
+export interface GraphEdge {
+  a: number;
+  b: number;
+  weight: number;
+}
+
+// Concept-relationship graph for the Map view: nodes are the top concepts (same
+// ones the Intelligence bars use), linked when notes mention BOTH (co-occurrence
+// = shared theme). Edges are thresholded + capped so the graph stays readable.
+export function conceptGraph(
+  notes: Note[],
+  maxEdges = 14,
+  minWeight = 6,
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const stats = analyzeConcepts(notes);
+  const terms = stats.map((s) => CONCEPTS.find((c) => c.label === s.label)?.terms ?? []);
+
+  const pair = new Map<string, number>();
+  for (const note of notes) {
+    const text = (note.content ?? `${note.title} ${note.preview ?? ""}`).toLowerCase();
+    const members: number[] = [];
+    terms.forEach((t, idx) => {
+      if (t.some((term) => text.includes(term))) members.push(idx);
+    });
+    for (let i = 0; i < members.length; i++) {
+      for (let j = i + 1; j < members.length; j++) {
+        const key = `${members[i]}-${members[j]}`;
+        pair.set(key, (pair.get(key) ?? 0) + 1);
+      }
+    }
+  }
+
+  const edges = [...pair.entries()]
+    .map(([k, weight]) => {
+      const [a, b] = k.split("-").map(Number);
+      return { a, b, weight };
+    })
+    .filter((e) => e.weight >= minWeight)
+    .sort((x, y) => y.weight - x.weight)
+    .slice(0, maxEdges);
+
+  const nodes: GraphNode[] = stats.map((s) => ({
+    label: s.label,
+    count: s.count,
+    emerging: s.emerging,
+    searchTerm: s.searchTerm,
+  }));
+
+  return { nodes, edges };
+}
