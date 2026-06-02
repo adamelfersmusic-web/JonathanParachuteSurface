@@ -83,6 +83,36 @@ code {
   font-size: 12px;
   color: var(--muted);
 }
+.config-card.center {
+  text-align: center;
+  align-items: center;
+}
+.token-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.ghost.link {
+  align-self: flex-start;
+  border: none;
+  color: var(--accent);
+  padding: 2px 0;
+}
+.ghost.link:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+.approve-link {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 8px;
+  padding: 9px 14px;
+  text-decoration: none;
+  font-weight: 600;
+}
 .muted {
   color: var(--muted);
 }

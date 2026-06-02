@@ -1,4 +1,5 @@
-import type { Note, TagInfo, VaultConfig } from "./types";
+import type { AuthManager } from "./auth";
+import type { Note, TagInfo } from "./types";
 
 // Thrown for any non-OK response. `conflict` flags the optimistic-concurrency
 // case (the note changed since we last read it) so the UI can prompt a reload.
@@ -57,28 +58,35 @@ function unwrapOne(data: any): any {
 }
 
 export class VaultApi {
-  private base: string;
-  private token: string;
+  private auth: AuthManager;
 
-  constructor(config: VaultConfig) {
-    this.base = config.base;
-    this.token = config.token;
+  constructor(auth: AuthManager) {
+    this.auth = auth;
   }
 
-  private async request(path: string, init: RequestInit = {}): Promise<any> {
+  private async send(path: string, init: RequestInit, token: string): Promise<Response> {
     const headers = new Headers(init.headers);
-    headers.set("Authorization", `Bearer ${this.token}`);
+    headers.set("Authorization", `Bearer ${token}`);
     if (init.body) headers.set("Content-Type", "application/json");
-
-    let res: Response;
     try {
-      res = await fetch(`${this.base}/api${path}`, { ...init, headers });
-    } catch (e) {
+      return await fetch(`${this.auth.vaultBase}/api${path}`, { ...init, headers });
+    } catch {
       // Network / CORS failures surface here with no status.
       throw new ApiError(
         "Could not reach the vault. Check the URL, your network, and that the vault allows cross-origin requests.",
         0,
       );
+    }
+  }
+
+  private async request(path: string, init: RequestInit = {}): Promise<any> {
+    let token = await this.auth.getAccessToken();
+    let res = await this.send(path, init, token);
+
+    // Access token rejected — try one silent refresh, then replay.
+    if (res.status === 401 && (await this.auth.tryRefresh())) {
+      token = await this.auth.getAccessToken();
+      res = await this.send(path, init, token);
     }
 
     if (!res.ok) {

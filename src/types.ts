@@ -25,11 +25,63 @@ export interface TagInfo {
   count: number;
 }
 
-export interface VaultConfig {
-  // Full vault base, e.g. https://aaron-hub.fly.dev/vault/jonathan
-  // We append /api/... to this.
-  base: string;
-  token: string;
+// OAuth scope vocabulary, per parachute's oauth-scopes pattern. The vault also
+// honors the legacy "full" synonym, but we request the current vocabulary.
+export type TokenScope = string;
+export const DEFAULT_SCOPE: TokenScope = "vault:read vault:write";
+
+// Persisted token envelope (mirrors surface-client's StoredToken).
+export interface StoredToken {
+  accessToken: string;
+  /** Absolute UTC ms (`Date.now()` baseline): now + expires_in * 1000. */
+  expiresAt?: number;
+  refreshToken?: string;
+  scope: TokenScope;
+  vault?: string;
+}
+
+// What we persist for a connected vault. `issuer`/`tokenEndpoint`/`clientId`
+// are present for OAuth sessions (needed to silently refresh); a pasted-token
+// session has just the vault URL + access token.
+export interface AuthSession {
+  vaultUrl: string; // base for /api calls, e.g. https://hub/vault/jonathan
+  issuer?: string;
+  tokenEndpoint?: string;
+  clientId?: string;
+  token: StoredToken;
+}
+
+// RFC 8414 Authorization Server metadata (the subset we use).
+export interface AuthServerMetadata {
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  registration_endpoint: string;
+  code_challenge_methods_supported?: string[];
+}
+
+// Token-endpoint response (RFC 6749 §4.1.4 + hub `services`/`vault` extensions).
+export interface TokenResponse {
+  access_token: string;
+  token_type: "bearer";
+  scope: TokenScope;
+  vault?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  services?: Record<string, { url?: string } | undefined>;
+}
+
+// PKCE + flow state stashed in sessionStorage between redirect and callback.
+export interface PendingOAuth {
+  issuerUrl: string;
+  issuer: string;
+  tokenEndpoint: string;
+  clientId: string;
+  codeVerifier: string;
+  state: string;
+  redirectUri: string;
+  scope: TokenScope;
+  startedAt: string;
 }
 
 // Script production pipeline. Order matters — it drives the kanban columns.

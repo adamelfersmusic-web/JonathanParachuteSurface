@@ -20,16 +20,33 @@ clean thing to add once the link clusters are built out.
 
 ## Auth & privacy
 
-There's no backend and nothing is hardcoded. On first load you paste:
+There's no backend and nothing is hardcoded. On first load you enter your
+**vault URL** (the root, e.g. `https://your-hub.fly.dev/vault/jonathan` —
+everything before `/api`) and connect one of two ways:
 
-- **Vault URL** — the full vault base, e.g. `https://your-hub.fly.dev/vault/jonathan`
-  (everything before `/api`).
-- **API token** — a hub JWT with `vault:write` scope.
+- **OAuth (default)** — the same flow the Notes reference app uses:
+  OAuth 2.1 + PKCE (S256), RFC 8414 metadata discovery, and RFC 7591 dynamic
+  client registration against your hub. You click **Connect with OAuth**, sign
+  in / consent on the hub, and get bounced back. Access tokens are refreshed
+  silently (refresh-token rotation) and on any `401`. If your hub requires admin
+  approval of the app, you'll see an "approval page" link.
+- **Token paste (fallback)** — under *Advanced*, paste a hub JWT with
+  `vault:write` scope. Useful for hubs without OAuth enabled, or quick use.
 
-Both are stored **only in this browser's `localStorage`** and sent **only to your
-vault**, as `Authorization: Bearer <token>` on each request. Use the ⏻ button to
-disconnect (clears them) and ⚙ to re-enter them. The cross-origin call works
-because the vault sends `Access-Control-Allow-Origin: *`.
+The token (and OAuth refresh material) is stored **only in this browser's
+`localStorage`** and sent **only to your vault**, as `Authorization: Bearer
+<token>` on each request. Use the ⏻ button to disconnect (clears everything).
+The cross-origin call works because the vault sends
+`Access-Control-Allow-Origin: *`.
+
+### OAuth redirect URI
+
+The app uses **its own served index URL** as the OAuth `redirect_uri`
+(computed at runtime — no repo name hardcoded). On a static host like GitHub
+Pages there's no separate `/oauth/callback` route to 404 on; the hub redirects
+back to the app root with `?code&state`, which the app detects on load,
+exchanges for a token, and then strips from the URL. OAuth requires a secure
+context, which `https://<username>.github.io/...` satisfies.
 
 ## Develop
 

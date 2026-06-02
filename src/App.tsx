@@ -1,58 +1,154 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { VaultApi } from "./api";
-import { clearConfig, loadConfig, vaultSlug } from "./config";
+import { AuthManager } from "./auth";
+import { clearSession, loadSession, saveSession, vaultSlug } from "./config";
+import {
+  completeOAuth,
+  PendingApprovalError,
+  loadPending,
+  resolveVaultUrl,
+  storedFromTokenResponse,
+} from "./oauth";
 import { ConfigScreen } from "./components/ConfigScreen";
 import { NoteCard } from "./components/NoteCard";
 import { ScriptsBoard } from "./components/ScriptsBoard";
 import { NotePanel, type PanelTarget } from "./components/NotePanel";
-import {
-  filterByTag,
-  pinned,
-  recent,
-  scripts,
-  tagCounts,
-  todos,
-} from "./derive";
-import type { Note, ScriptStatus, VaultConfig } from "./types";
+import { filterByTag, pinned, recent, scripts, tagCounts, todos } from "./derive";
+import type { AuthSession, Note, ScriptStatus } from "./types";
+
+type OAuthPhase =
+  | { kind: "none" }
+  | { kind: "completing" }
+  | { kind: "approval"; approveUrl: string }
+  | { kind: "error"; message: string };
 
 export function App() {
-  const [config, setConfig] = useState<VaultConfig | null>(() => loadConfig());
-  const [reconfiguring, setReconfiguring] = useState(false);
+  const [auth, setAuth] = useState<AuthManager | null>(null);
+  const [phase, setPhase] = useState<OAuthPhase>({ kind: "none" });
+  const ranReturn = useRef(false);
 
-  if (!config || reconfiguring) {
+  // Build (or rebuild) the auth manager from a session and remember it.
+  function adopt(session: AuthSession) {
+    saveSession(session);
+    setAuth(
+      new AuthManager(session, (next) => {
+        if (!next) {
+          clearSession();
+          setAuth(null);
+        }
+      }),
+    );
+  }
+
+  // On first load, either restore a saved session or finish an OAuth return.
+  useEffect(() => {
+    if (ranReturn.current) return;
+    ranReturn.current = true;
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+    const oauthError = params.get("error");
+    const returning = (code && state) || oauthError;
+
+    if (!returning) {
+      const saved = loadSession();
+      if (saved) adopt(saved);
+      return;
+    }
+
+    // Clean the OAuth params out of the URL so a refresh doesn't re-run it.
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState(null, "", cleanUrl);
+
+    if (oauthError) {
+      setPhase({ kind: "error", message: `Hub returned: ${oauthError}` });
+      return;
+    }
+    if (!loadPending()) {
+      // No pending flow (e.g. a stale/bookmarked callback) — fall back to restore.
+      const saved = loadSession();
+      if (saved) adopt(saved);
+      return;
+    }
+
+    setPhase({ kind: "completing" });
+    completeOAuth(code!, state!)
+      .then(({ pending, token }) => {
+        const vaultUrl = resolveVaultUrl(token, pending.issuerUrl);
+        adopt({
+          vaultUrl,
+          issuer: pending.issuer,
+          tokenEndpoint: pending.tokenEndpoint,
+          clientId: pending.clientId,
+          token: storedFromTokenResponse(token),
+        });
+        setPhase({ kind: "none" });
+      })
+      .catch((err) => {
+        if (err instanceof PendingApprovalError) {
+          setPhase({ kind: "approval", approveUrl: err.approveUrl });
+        } else {
+          setPhase({ kind: "error", message: err instanceof Error ? err.message : String(err) });
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (phase.kind === "completing") {
+    return (
+      <div className="config-screen">
+        <div className="config-card center">
+          <h1>Connecting…</h1>
+          <p className="muted">Exchanging the authorization code with your vault.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase.kind === "approval") {
+    return (
+      <div className="config-screen">
+        <div className="config-card center">
+          <h1>Waiting for hub approval</h1>
+          <p className="muted">
+            Your hub admin needs to approve Vault Deck before sign-in can complete.
+            Open the approval page, approve, then connect again.
+          </p>
+          <a className="approve-link" href={phase.approveUrl} target="_blank" rel="noreferrer">
+            Open approval page
+          </a>
+          <button className="ghost" onClick={() => setPhase({ kind: "none" })}>
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!auth) {
+    // Surface any OAuth-return error above the form rather than on a dead end.
     return (
       <ConfigScreen
-        initial={config}
-        onSaved={(c) => {
-          setConfig(c);
-          setReconfiguring(false);
-        }}
+        onConnected={adopt}
+        notice={phase.kind === "error" ? phase.message : undefined}
       />
     );
   }
 
   return (
     <Dashboard
-      config={config}
-      onReconfigure={() => setReconfiguring(true)}
+      auth={auth}
       onDisconnect={() => {
-        clearConfig();
-        setConfig(null);
+        clearSession();
+        setAuth(null);
       }}
     />
   );
 }
 
-function Dashboard({
-  config,
-  onReconfigure,
-  onDisconnect,
-}: {
-  config: VaultConfig;
-  onReconfigure: () => void;
-  onDisconnect: () => void;
-}) {
-  const api = useMemo(() => new VaultApi(config), [config]);
+function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: () => void }) {
+  const api = useMemo(() => new VaultApi(auth), [auth]);
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,23 +205,13 @@ function Dashboard({
     const found = notes.find((n) => n.id === idOrPath || n.path === idOrPath);
     setTarget({
       mode: "view",
-      note:
-        found ?? {
-          id: idOrPath,
-          path: idOrPath,
-          title: idOrPath,
-          tags: [],
-          metadata: {},
-        },
+      note: found ?? { id: idOrPath, path: idOrPath, title: idOrPath, tags: [], metadata: {} },
     });
   }
 
   async function moveScript(note: Note, status: ScriptStatus) {
     try {
-      await api.updateNote(note.id, {
-        metadata: { status },
-        ifUpdatedAt: note.updatedAt,
-      });
+      await api.updateNote(note.id, { metadata: { status }, ifUpdatedAt: note.updatedAt });
       await loadAll();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -133,13 +219,12 @@ function Dashboard({
   }
 
   const tags = useMemo(() => tagCounts(notes), [notes]);
-  const showCommandCenter = !query.trim() && !activeTag;
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          Vault Deck <span className="brand-slug">{vaultSlug(config.base)}</span>
+          Vault Deck <span className="brand-slug">{vaultSlug(auth.vaultBase)}</span>
         </div>
         <div className="search-wrap">
           <input
@@ -158,9 +243,6 @@ function Dashboard({
           <button onClick={() => setTarget({ mode: "create" })}>+ Capture</button>
           <button className="ghost" onClick={loadAll} title="Refresh">
             ↻
-          </button>
-          <button className="ghost" onClick={onReconfigure} title="Settings">
-            ⚙
           </button>
           <button className="ghost" onClick={onDisconnect} title="Disconnect">
             ⏻
@@ -224,13 +306,7 @@ function Dashboard({
               showStatus={activeTag === "content/script"}
             />
           ) : (
-            showCommandCenter && (
-              <CommandCenter
-                notes={notes}
-                onOpen={openNote}
-                onMove={moveScript}
-              />
-            )
+            <CommandCenter notes={notes} onOpen={openNote} onMove={moveScript} />
           )}
         </main>
       </div>
