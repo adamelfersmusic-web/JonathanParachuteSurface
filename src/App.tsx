@@ -14,7 +14,7 @@ import { CaptureModal } from "./components/CaptureModal";
 import { IntelligencePanel } from "./components/IntelligencePanel";
 import { ViewTabs, type ViewId } from "./components/ViewTabs";
 import { PipelineView } from "./components/PipelineView";
-import { MapView } from "./components/MapView";
+import { MapView, type MapMode } from "./components/MapView";
 import { FounderView } from "./components/FounderView";
 import { NoteCard } from "./components/NoteCard";
 import { ScriptsBoard } from "./components/ScriptsBoard";
@@ -176,6 +176,28 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
   const [view, setView] = useState<ViewId>(
     () => (localStorage.getItem("vault-deck.view") as ViewId) || "deck",
   );
+  // Map view: zoom level (concepts/notes) + the tag isolated via the rail.
+  const [mapMode, setMapMode] = useState<MapMode>(
+    () => (localStorage.getItem("vault-deck.mapmode") as MapMode) || "concepts",
+  );
+  const [mapHighlight, setMapHighlight] = useState<string | null>(null);
+
+  function changeMapMode(m: MapMode) {
+    setMapMode(m);
+    localStorage.setItem("vault-deck.mapmode", m);
+    if (m === "concepts") setMapHighlight(null);
+  }
+
+  // On the Notes map, the rail isolates a tag in the graph instead of navigating.
+  function railClick(tag: string | null) {
+    if (view === "map" && mapMode === "notes") {
+      setMapHighlight((cur) => (cur === tag ? null : tag));
+    } else {
+      browseTag(tag);
+    }
+  }
+
+  const mapIsolating = view === "map" && mapMode === "notes";
 
   function toggleIntel() {
     setIntelCollapsed((c) => {
@@ -195,6 +217,7 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
     changeView(v);
     setQuery("");
     setActiveTag(null);
+    setMapHighlight(null);
   }
 
   function browseTag(tag: string | null) {
@@ -311,17 +334,33 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
         <nav className="tag-rail">
           <div className="tag-rail-head">Tags</div>
           <button
-            className={`tag-rail-item ${view === "deck" && activeTag === null && !query ? "active" : ""}`}
-            onClick={() => browseTag(null)}
+            className={`tag-rail-item ${
+              mapIsolating
+                ? mapHighlight === null
+                  ? "active"
+                  : ""
+                : view === "deck" && activeTag === null && !query
+                  ? "active"
+                  : ""
+            }`}
+            onClick={() => railClick(null)}
           >
-            <span>All notes</span>
+            <span>{mapIsolating ? "Show all" : "All notes"}</span>
             <span className="tag-rail-count">{notes.length}</span>
           </button>
           {tags.map((t) => (
             <button
               key={t.name}
-              className={`tag-rail-item ${view === "deck" && activeTag === t.name ? "active" : ""}`}
-              onClick={() => browseTag(t.name)}
+              className={`tag-rail-item ${
+                mapIsolating
+                  ? mapHighlight === t.name
+                    ? "active"
+                    : ""
+                  : view === "deck" && activeTag === t.name
+                    ? "active"
+                    : ""
+              }`}
+              onClick={() => railClick(t.name)}
             >
               <span>{t.name}</span>
               <span className="tag-rail-count">{t.count}</span>
@@ -365,11 +404,15 @@ function Dashboard({ auth, onDisconnect }: { auth: AuthManager; onDisconnect: ()
           ) : view === "map" ? (
             <MapView
               notes={notes}
+              mode={mapMode}
+              onModeChange={changeMapMode}
+              highlightTag={mapHighlight}
               onConcept={(term) => {
                 changeView("deck");
                 setActiveTag(null);
                 setQuery(term);
               }}
+              onOpenNote={openNote}
             />
           ) : (
             <FounderView />

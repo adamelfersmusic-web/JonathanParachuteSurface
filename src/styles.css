@@ -399,6 +399,20 @@ button:disabled {
   color: var(--gold);
   font-weight: 600;
 }
+.segmented.small .seg {
+  padding: 5px 13px;
+  font-size: 12px;
+}
+
+.map-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.map-legend .swatch {
+  border-radius: 50%;
+}
 
 /* ---------- View headers / dedicated views ---------- */
 .view-head {
