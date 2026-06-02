@@ -46,13 +46,9 @@ npm run typecheck  # tsc --noEmit
 1. Create the repo (public) and push this code.
 2. In the repo: **Settings → Pages → Source = GitHub Actions**.
 3. The included workflow (`.github/workflows/deploy.yml`) builds and publishes
-   `dist/` on every push to **`main`** (or via "Run workflow"). The Vite `base`
-   is relative, so it works at `https://<username>.github.io/<repo>/` with no
-   extra config. A custom domain is optional.
-
-> Note: deploy runs on pushes to `main`. While you're on a feature branch it
-> won't publish until merged — trigger it manually from the Actions tab if you
-> want a preview build sooner.
+   `dist/` on every push to the default branch (or via "Run workflow"). The
+   Vite `base` is relative, so it works at `https://<username>.github.io/<repo>/`
+   with no extra config. A custom domain is optional.
 
 ## Dependencies
 
